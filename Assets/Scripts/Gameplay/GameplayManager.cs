@@ -48,6 +48,7 @@ public class GameplayManager : MonoBehaviour
     private CircleZone[] activeCircles;
     private StageData currentStage;
     private float kneeY = 0.6f;
+    private float radiusVP = 0.1f; // radius ใน viewport units
 
     void Start()
     {
@@ -56,7 +57,20 @@ public class GameplayManager : MonoBehaviour
         timeLeft = currentStage.stageDuration;
         activeCircles = new CircleZone[currentStage.circleCount];
 
+        // คำนวณ radius ใน viewport units จาก world units
+        CalculateRadiusViewport();
+
         SpawnAllCircles();
+    }
+
+    void CalculateRadiusViewport()
+    {
+        // เปรียบเทียบจุด 2 จุดใน world space → viewport เพื่อหา scale
+        Vector3 centerWorld = Camera.main.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, 10f));
+        Vector3 edgeWorld = centerWorld + new Vector3(currentStage.circleSize * 0.5f, 0f, 0f);
+        Vector3 centerVP = Camera.main.WorldToViewportPoint(centerWorld);
+        Vector3 edgeVP = Camera.main.WorldToViewportPoint(edgeWorld);
+        radiusVP = Mathf.Abs(edgeVP.x - centerVP.x);
     }
 
     void Update()
@@ -72,42 +86,47 @@ public class GameplayManager : MonoBehaviour
                 kneeY = (lk + rk) * 0.5f;
         }
 
-        // ตรวจ Hit และ Respawn ถ้า circle หมดเวลา
+        // ถ้า circle ใดหมดเวลา (null) → spawn ชุดใหม่ทั้งหมด
+        bool anyNull = false;
         for (int i = 0; i < activeCircles.Length; i++)
         {
-            if (activeCircles[i] == null)
-            {
-                SpawnAllCircles(); // respawn ทุก slot พร้อมกัน
-                break;
-            }
-            CheckHit(i);
+            if (activeCircles[i] == null) { anyNull = true; break; }
         }
+        if (anyNull) { SpawnAllCircles(); }
+        else { CheckAllHit(); }
 
         timeLeft -= Time.deltaTime;
         timerText.text = "Time: " + Mathf.CeilToInt(timeLeft);
 
-        if (timeLeft <= 0f)
-            EndStage();
+        if (timeLeft <= 0f) EndStage();
     }
 
-    void CheckHit(int index)
+    // ปัญหาที่ 3 — ต้องโดนทุก circle พร้อมกันถึงได้คะแนน
+    void CheckAllHit()
     {
-        CircleZone circle = activeCircles[index];
-        if (circle == null) return;
+        bool allHit = true;
+        for (int i = 0; i < activeCircles.Length; i++)
+        {
+            if (activeCircles[i] == null) { allHit = false; break; }
+            Vector3 pos = GetBodyPartWorldPos(activeCircles[i].targetPart);
+            if (!activeCircles[i].IsHit(pos)) { allHit = false; break; }
+        }
 
-        Vector3 pos = GetBodyPartWorldPos(circle.targetPart);
-        if (circle.IsHit(pos))
+        if (allHit)
         {
             score += 1000;
             scoreText.text = "Score: " + score;
-            Destroy(circle.gameObject);
-            activeCircles[index] = null;
+            SpawnAllCircles();
         }
     }
 
     void SpawnAllCircles()
     {
-        // สร้าง list BodyPart แล้ว shuffle → ไม่ซ้ำกัน
+        // Destroy ชุดเก่า
+        foreach (var c in activeCircles)
+            if (c != null) Destroy(c.gameObject);
+
+        // Shuffle BodyPart → ไม่ซ้ำกัน
         List<CircleZone.BodyPart> parts = new List<CircleZone.BodyPart>
         {
             CircleZone.BodyPart.LeftHand,
@@ -124,37 +143,90 @@ public class GameplayManager : MonoBehaviour
             parts[j] = tmp;
         }
 
+        // ปัญหาที่ 1 — Cluster: สุ่ม center X ร่วมกัน
+        float pad = radiusVP + 0.03f;
+        float centerX = Random.Range(pad, 1f - pad);
+
         for (int i = 0; i < activeCircles.Length; i++)
         {
-            if (activeCircles[i] != null)
-                Destroy(activeCircles[i].gameObject);
-            activeCircles[i] = SpawnOneCircle(parts[i]);
+            activeCircles[i] = SpawnOneCircle(parts[i], centerX, pad);
         }
+
+        CalculateRadiusViewport();
     }
 
-    CircleZone SpawnOneCircle(CircleZone.BodyPart part)
+    bool IsTooCloseToLandmarks(float vpX, float vpY, float minDist = 0.20f)
     {
-        float minY, maxY;
+        if (udpReceiver == null) return false;
+
+        // landmark ทั้ง 4 จุด (แปลง Y ให้ตรงกับ viewport)
+        Vector2[] landmarks = new Vector2[]
+        {
+        new Vector2(udpReceiver.leftHand.x,  1f - udpReceiver.leftHand.y),
+        new Vector2(udpReceiver.rightHand.x, 1f - udpReceiver.rightHand.y),
+        new Vector2(udpReceiver.leftFoot.x,  1f - udpReceiver.leftFoot.y),
+        new Vector2(udpReceiver.rightFoot.x, 1f - udpReceiver.rightFoot.y),
+        };
+
+        Vector2 spawnVP = new Vector2(vpX, vpY);
+        foreach (var lm in landmarks)
+        {
+            if (Vector2.Distance(spawnVP, lm) < minDist)
+                return true;
+        }
+        return false;
+    }
+    CircleZone SpawnOneCircle(CircleZone.BodyPart part, float centerX, float pad)
+    {
         bool isFoot = part == CircleZone.BodyPart.LeftFoot ||
                       part == CircleZone.BodyPart.RightFoot;
 
+        float minY, maxY;
         if (isFoot)
         {
             float kneeViewportY = 1f - kneeY;
-            maxY = Mathf.Clamp(kneeViewportY - 0.05f, 0.1f, 0.5f);
-            minY = 0.05f;
+            maxY = Mathf.Clamp(kneeViewportY - pad, pad, 0.5f);
+            minY = pad;
         }
         else
         {
-            minY = 0.50f;
-            maxY = 0.90f;
+            minY = 0.5f;
+            maxY = 1f - pad;
         }
 
-        float randX = Random.Range(0.15f, 0.85f);
-        float randY = Random.Range(minY, maxY);
+        float spawnX = pad, spawnY = pad;
+        bool found = false;
+
+        // ลองสุ่มสูงสุด 10 ครั้ง หาตำแหน่งที่ห่าง landmark
+        for (int attempt = 0; attempt < 10; attempt++)
+        {
+            float tryX = Mathf.Clamp(
+                centerX + Random.Range(-0.12f, 0.12f),
+                pad, 1f - pad
+            );
+            float tryY = Mathf.Clamp(
+                Random.Range(minY, maxY),
+                pad, 1f - pad
+            );
+
+            if (!IsTooCloseToLandmarks(tryX, tryY))
+            {
+                spawnX = tryX;
+                spawnY = tryY;
+                found = true;
+                break;
+            }
+        }
+
+        // ถ้าหาไม่ได้ใน 10 ครั้ง ใช้ position ล่าสุดไปก่อน
+        if (!found)
+        {
+            spawnX = Mathf.Clamp(centerX + Random.Range(-0.12f, 0.12f), pad, 1f - pad);
+            spawnY = Mathf.Clamp(Random.Range(minY, maxY), pad, 1f - pad);
+        }
 
         Vector3 spawnPos = Camera.main.ViewportToWorldPoint(
-            new Vector3(randX, randY, 10f)
+            new Vector3(spawnX, spawnY, 10f)
         );
 
         GameObject obj = Instantiate(circlePrefab, spawnPos, Quaternion.identity);
@@ -171,6 +243,7 @@ public class GameplayManager : MonoBehaviour
 
         int stage = PlayerPrefs.GetInt("SelectedStage", 1);
         int playerId = PlayerPrefs.GetInt("PlayerId", -1);
+
         if (playerId != -1)
             DatabaseManager.Instance.SaveScore(playerId, stage, score);
 
