@@ -25,10 +25,10 @@ public class GameplayManager : MonoBehaviour
 
         public StageData(float size, float interval, float duration, int count)
         {
-            circleSize    = size;
+            circleSize = size;
             spawnInterval = interval;
             stageDuration = duration;
-            circleCount   = count;
+            circleCount = count;
         }
     }
 
@@ -79,8 +79,8 @@ public class GameplayManager : MonoBehaviour
         }
 
         int stageIndex = Mathf.Clamp(PlayerPrefs.GetInt("SelectedStage", 1) - 1, 0, 9);
-        currentStage  = stages[stageIndex];
-        timeLeft      = currentStage.stageDuration;
+        currentStage = stages[stageIndex];
+        timeLeft = currentStage.stageDuration;
         activeCircles = new CircleZone[currentStage.circleCount];
 
         CalculateRadiusViewport();
@@ -90,9 +90,9 @@ public class GameplayManager : MonoBehaviour
     void CalculateRadiusViewport()
     {
         Vector3 centerWorld = Camera.main.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, 10f));
-        Vector3 edgeWorld   = centerWorld + new Vector3(currentStage.circleSize * 0.5f, 0f, 0f);
-        Vector3 centerVP    = Camera.main.WorldToViewportPoint(centerWorld);
-        Vector3 edgeVP      = Camera.main.WorldToViewportPoint(edgeWorld);
+        Vector3 edgeWorld = centerWorld + new Vector3(currentStage.circleSize * 0.5f, 0f, 0f);
+        Vector3 centerVP = Camera.main.WorldToViewportPoint(centerWorld);
+        Vector3 edgeVP = Camera.main.WorldToViewportPoint(edgeWorld);
         radiusVP = Mathf.Abs(edgeVP.x - centerVP.x);
     }
 
@@ -182,7 +182,7 @@ public class GameplayManager : MonoBehaviour
             parts[j] = tmp;
         }
 
-        float pad     = radiusVP + 0.03f;
+        float pad = radiusVP + 0.03f;
         float centerX = Random.Range(pad, 1f - pad);
 
         for (int i = 0; i < activeCircles.Length; i++)
@@ -228,7 +228,7 @@ public class GameplayManager : MonoBehaviour
             {
                 spawnX = tryX;
                 spawnY = tryY;
-                found  = true;
+                found = true;
                 break;
             }
         }
@@ -241,7 +241,7 @@ public class GameplayManager : MonoBehaviour
 
         Vector3 spawnPos = Camera.main.ViewportToWorldPoint(new Vector3(spawnX, spawnY, 10f));
 
-        GameObject obj  = Instantiate(circlePrefab, spawnPos, Quaternion.identity);
+        GameObject obj = Instantiate(circlePrefab, spawnPos, Quaternion.identity);
         CircleZone zone = obj.GetComponent<CircleZone>();
         zone.Setup(part, currentStage.circleSize, currentStage.spawnInterval);
         return zone;
@@ -274,7 +274,7 @@ public class GameplayManager : MonoBehaviour
         foreach (var c in activeCircles)
             if (c != null) Destroy(c.gameObject);
 
-        int stage    = PlayerPrefs.GetInt("SelectedStage", 1);
+        int stage = PlayerPrefs.GetInt("SelectedStage", 1);
         int playerId = PlayerPrefs.GetInt("PlayerId", -1);
 
         float accuracy = setsSpawned > 0 ? (float)setsHit / setsSpawned * 100f : 0f;
@@ -290,9 +290,9 @@ public class GameplayManager : MonoBehaviour
     Vector3 GetBodyPartWorldPos(CircleZone.BodyPart part)
     {
         Vector2 norm = Vector2.zero;
-        if      (part == CircleZone.BodyPart.LeftHand)  norm = udpReceiver.leftHand;
+        if (part == CircleZone.BodyPart.LeftHand) norm = udpReceiver.leftHand;
         else if (part == CircleZone.BodyPart.RightHand) norm = udpReceiver.rightHand;
-        else if (part == CircleZone.BodyPart.LeftFoot)  norm = udpReceiver.leftFoot;
+        else if (part == CircleZone.BodyPart.LeftFoot) norm = udpReceiver.leftFoot;
         else if (part == CircleZone.BodyPart.RightFoot) norm = udpReceiver.rightFoot;
 
         return Camera.main.ViewportToWorldPoint(new Vector3(norm.x, 1f - norm.y, 10f));
