@@ -3375,8 +3375,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -3.9999695, y: -27}
-  m_SizeDelta: {x: 426.5197, y: 49.4304}
+  m_AnchoredPosition: {x: -3.9999695, y: -25.858}
+  m_SizeDelta: {x: 426.5197, y: 51.715}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &982980360
 MonoBehaviour:
@@ -3902,7 +3902,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 57.3
+  m_fontSize: 63.05
   m_fontSizeBase: 87.68
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -4500,7 +4500,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 45
+  m_fontSize: 47.6
   m_fontSizeBase: 24
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -4615,7 +4615,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 924aa199c2dc28b4a93af328b1b2315f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  udpReceiver: {fileID: 1402964557}
   leftHandMarker: {fileID: 1918630966}
   rightHandMarker: {fileID: 364209088}
   leftFootMarker: {fileID: 726536372}
